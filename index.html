@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Collab Docs - Collaboration en temps reel</title>
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/quill-cursors@3.1.0/dist/quill-cursors.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Inter',Arial,sans-serif; background:#0f1117; color:#fff; }
+
+    /* LOGIN */
+    #login-screen {
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      height:100vh; background:linear-gradient(135deg,#0f1117 0%,#1a1f2e 50%,#0f1117 100%);
+      position:relative; overflow:hidden;
+    }
+    #login-screen::before {
+      content:''; position:absolute; width:600px; height:600px;
+      background:radial-gradient(circle,rgba(99,102,241,0.15) 0%,transparent 70%);
+      top:-100px; left:-100px; animation:pulse 4s ease-in-out infinite;
+    }
+    #login-screen::after {
+      content:''; position:absolute; width:500px; height:500px;
+      background:radial-gradient(circle,rgba(16,185,129,0.1) 0%,transparent 70%);
+      bottom:-100px; right:-100px; animation:pulse 4s ease-in-out infinite reverse;
+    }
+    @keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.1);opacity:0.7} }
+    .login-box {
+      background:rgba(255,255,255,0.05); backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,0.1); border-radius:20px;
+      padding:40px; width:380px; z-index:1;
+      box-shadow:0 25px 50px rgba(0,0,0,0.5); animation:fadeInUp 0.6s ease;
+    }
+    @keyframes fadeInUp { from{transform:translateY(30px);opacity:0} to{transform:translateY(0);opacity:1} }
+    .login-logo { text-align:center; margin-bottom:30px; }
+    .login-logo .icon { font-size:48px; animation:float 3s ease-in-out infinite; display:block; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    .login-logo h1 { font-size:26px; font-weight:700; color:#fff; margin-top:8px; }
+    .login-logo p { color:rgba(255,255,255,0.5); font-size:13px; margin-top:4px; }
+    .input-group { position:relative; margin-bottom:14px; }
+    .input-group input {
+      width:100%; padding:13px 16px 13px 44px;
+      background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);
+      border-radius:12px; color:white; font-size:14px; outline:none;
+      transition:all 0.3s; font-family:inherit;
+    }
+    .input-group input:focus { border-color:#6366f1; background:rgba(99,102,241,0.1); box-shadow:0 0 0 3px rgba(99,102,241,0.2); }
+    .input-group input::placeholder { color:rgba(255,255,255,0.3); }
+    .input-group .inp-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); font-size:16px; }
+    .login-btn {
+      width:100%; padding:14px; border:none; border-radius:12px; cursor:pointer;
+      font-size:15px; font-weight:600; font-family:inherit;
+      background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white;
+      transition:all 0.3s; margin-top:8px; box-shadow:0 4px 15px rgba(99,102,241,0.4);
+      position:relative; overflow:hidden;
+    }
+    .login-btn::after { content:''; position:absolute; top:50%; left:50%; width:0; height:0; background:rgba(255,255,255,0.2); border-radius:50%; transform:translate(-50%,-50%); transition:width 0.4s,height 0.4s; }
+    .login-btn:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(99,102,241,0.5); }
+    .login-btn:hover::after { width:300px; height:300px; }
+    .login-btn:active { transform:translateY(0); }
+
+    /* APP */
+    #app-screen { display:none; height:100vh; flex-direction:column; background:#0f1117; }
+    #app-screen.visible { display:flex; }
+
+    /* MENUBAR (File/Edit/View...) */
+    #menubar {
+      background:#1a1f2e; border-bottom:1px solid rgba(255,255,255,0.06);
+      display:flex; align-items:center; gap:4px; padding:0 12px; height:30px; flex-shrink:0;
+    }
+    .menu-item { position:relative; }
+    .menu-trigger {
+      padding:4px 10px; color:rgba(255,255,255,0.7); background:none; border:none;
+      cursor:pointer; font-size:12px; font-family:inherit; border-radius:4px; transition:all 0.2s;
+    }
+    .menu-trigger:hover { background:rgba(255,255,255,0.1); color:white; }
+    .menu-dropdown {
+      display:none; position:absolute; top:28px; left:0;
+      background:#1e2435; border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.5);
+      z-index:1000; min-width:180px; overflow:hidden; animation:dropDown 0.15s ease;
+    }
+    .menu-dropdown.open { display:block; }
+    @keyframes dropDown { from{transform:translateY(-6px);opacity:0} to{transform:translateY(0);opacity:1} }
+    .menu-sep { height:1px; background:rgba(255,255,255,0.08); margin:4px 0; }
+    .menu-opt {
+      padding:8px 16px; cursor:pointer; color:rgba(255,255,255,0.8);
+      font-size:12px; transition:background 0.15s; display:flex; align-items:center;
+      justify-content:space-between; gap:20px;
+    }
+    .menu-opt:hover { background:rgba(99,102,241,0.3); color:white; }
+    .menu-opt .shortcut { color:rgba(255,255,255,0.3); font-size:11px; }
+
+    /* NAVBAR */
+    #navbar {
+      background:rgba(26,31,46,0.98); border-bottom:1px solid rgba(255,255,255,0.08);
+      padding:0 16px; display:flex; align-items:center; justify-content:space-between;
+      height:52px; flex-shrink:0; gap:8px;
+    }
+    #navbar-left { display:flex; align-items:center; gap:10px; }
+    #navbar-left h1 { font-size:17px; font-weight:700; color:white; white-space:nowrap; }
+    #navbar-right { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    #room-badge {
+      background:rgba(99,102,241,0.2); border:1px solid rgba(99,102,241,0.4);
+      color:#a5b4fc; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600;
+    }
+    #status-badge { display:flex; align-items:center; gap:5px; font-size:11px; color:rgba(255,255,255,0.5); }
+    #status-dot { width:7px; height:7px; border-radius:50%; background:#10b981; animation:blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* TOOL BUTTONS */
+    .tool-btn {
+      padding:6px 11px; border:none; border-radius:8px; cursor:pointer;
+      font-size:11px; font-weight:600; font-family:inherit;
+      transition:all 0.2s; display:flex; align-items:center; gap:4px; white-space:nowrap;
+      position:relative; overflow:hidden;
+    }
+    .tool-btn::after { content:''; position:absolute; top:50%; left:50%; width:0; height:0; background:rgba(255,255,255,0.25); border-radius:50%; transform:translate(-50%,-50%); transition:width 0.3s,height 0.3s; }
+    .tool-btn:hover { transform:translateY(-2px); filter:brightness(1.15); box-shadow:0 4px 12px rgba(0,0,0,0.3); }
+    .tool-btn:hover::after { width:200px; height:200px; }
+    .tool-btn:active { transform:translateY(0) scale(0.97); }
+    .btn-save { background:linear-gradient(135deg,#f59e0b,#d97706); color:white; }
+    .btn-table { background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; }
+    .btn-search { background:linear-gradient(135deg,#8b5cf6,#7c3aed); color:white; }
+    .btn-header { background:linear-gradient(135deg,#10b981,#059669); color:white; }
+    .btn-comment { background:linear-gradient(135deg,#f97316,#ea580c); color:white; }
+    .btn-history { background:linear-gradient(135deg,#06b6d4,#0891b2); color:white; }
+    .btn-chat { background:linear-gradient(135deg,#ef4444,#dc2626); color:white; }
+
+    /* DROPDOWN */
+    .dropdown { position:relative; display:inline-block; }
+    .dropdown-menu {
+      display:none; position:absolute; top:38px; right:0;
+      background:#1e2435; border:1px solid rgba(255,255,255,0.1);
+      border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5);
+      z-index:100; min-width:170px; overflow:hidden; animation:dropDown 0.2s ease;
+    }
+    .dropdown-menu.open { display:block; }
+    .dropdown-item {
+      padding:10px 16px; cursor:pointer; color:rgba(255,255,255,0.8);
+      font-size:12px; transition:background 0.15s; display:flex; align-items:center; gap:8px;
+    }
+    .dropdown-item:hover { background:rgba(99,102,241,0.3); color:white; }
+
+    /* USERS BAR */
+    #users-bar {
+      background:rgba(26,31,46,0.8); border-bottom:1px solid rgba(255,255,255,0.05);
+      padding:5px 16px; display:flex; gap:6px; flex-wrap:wrap; align-items:center; flex-shrink:0;
+    }
+    .user-badge {
+      display:flex; align-items:center; gap:5px; color:white;
+      padding:3px 10px; border-radius:20px; font-size:11px; font-weight:500;
+      animation:badgeIn 0.3s ease; transition:transform 0.2s;
+    }
+    .user-badge:hover { transform:scale(1.05); }
+    @keyframes badgeIn { from{opacity:0;transform:scale(0.7)} to{opacity:1;transform:scale(1)} }
+
+    /* SEARCH BAR */
+    #search-bar {
+      background:rgba(26,31,46,0.95); border-bottom:1px solid rgba(255,255,255,0.05);
+      padding:8px 16px; display:none; align-items:center; gap:8px; flex-wrap:wrap; flex-shrink:0;
+    }
+    #search-bar input {
+      padding:7px 12px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);
+      border-radius:8px; color:white; font-size:12px; outline:none; width:160px; font-family:inherit;
+      transition:border-color 0.2s;
+    }
+    #search-bar input:focus { border-color:#6366f1; }
+    #search-bar input::placeholder { color:rgba(255,255,255,0.3); }
+    .search-btn {
+      padding:7px 12px; border:none; border-radius:8px; cursor:pointer;
+      font-size:11px; font-weight:600; color:white; font-family:inherit; transition:all 0.2s;
+    }
+    .search-btn:hover { transform:translateY(-1px); filter:brightness(1.1); }
+    #search-result { font-size:12px; color:rgba(255,255,255,0.5); }
+
+    /* HEADER FOOTER BAR */
+    #header-footer-bar {
+      background:rgba(26,31,46,0.95); border-bottom:1px solid rgba(255,255,255,0.05);
+      padding:7px 16px; display:none; align-items:center; gap:10px; flex-wrap:wrap; flex-shrink:0; font-size:12px;
+    }
+    #header-footer-bar label { color:rgba(255,255,255,0.5); }
+    #header-footer-bar input {
+      padding:7px 12px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);
+      border-radius:8px; color:white; font-size:12px; outline:none; width:180px; font-family:inherit;
+      transition:border-color 0.2s;
+    }
+    #header-footer-bar input:focus { border-color:#10b981; }
+
+    /* MAIN AREA */
+    #main-area { display:flex; flex:1; overflow:hidden; }
+    #editor-side { flex:1; overflow-y:auto; padding:16px; }
+
+    /* HEADER DISPLAY */
+    #header-display {
+      max-width:860px; margin:0 auto 10px; padding:10px 16px;
+      font-weight:700; color:white; font-size:15px; display:none;
+      background:rgba(99,102,241,0.15); border-left:3px solid #6366f1; border-radius:6px;
+      animation:fadeIn 0.3s ease;
+    }
+
+    /* EDITOR */
+    #container {
+      max-width:860px; margin:0 auto; background:#1a1f2e;
+      border-radius:12px; border:1px solid rgba(255,255,255,0.08);
+      box-shadow:0 4px 24px rgba(0,0,0,0.4); overflow:hidden;
+      transition:box-shadow 0.3s;
+    }
+    #container:focus-within { box-shadow:0 4px 24px rgba(99,102,241,0.2); border-color:rgba(99,102,241,0.3); }
+    .ql-toolbar.ql-snow {
+      background:#1e2435 !important; border:none !important;
+      border-bottom:1px solid rgba(255,255,255,0.08) !important; padding:10px 12px;
+    }
+    .ql-toolbar .ql-stroke { stroke:rgba(255,255,255,0.55) !important; }
+    .ql-toolbar .ql-fill { fill:rgba(255,255,255,0.55) !important; }
+    .ql-toolbar .ql-picker-label { color:rgba(255,255,255,0.55) !important; }
+    .ql-toolbar .ql-picker-label::before { color:rgba(255,255,255,0.55) !important; }
+    .ql-toolbar button:hover .ql-stroke { stroke:#6366f1 !important; }
+    .ql-toolbar button:hover .ql-fill { fill:#6366f1 !important; }
+    .ql-toolbar button.ql-active .ql-stroke { stroke:#6366f1 !important; }
+    .ql-toolbar button.ql-active .ql-fill { fill:#6366f1 !important; }
+    .ql-container.ql-snow { border:none !important; }
+    #editor { height:480px; font-size:15px; }
+    .ql-editor { color:#e2e8f0; }
+    .ql-editor.ql-blank::before { color:rgba(255,255,255,0.2); font-style:normal; }
+    .ql-picker-options { background:#1e2435 !important; border:1px solid rgba(255,255,255,0.1) !important; border-radius:8px !important; }
+    .ql-picker-item { color:rgba(255,255,255,0.8) !important; }
+    .ql-picker-item:hover { background:rgba(99,102,241,0.3) !important; color:white !important; }
+
+    /* FONT NAMES IN PICKER */
+    .ql-font span[data-value="arial"]::before { content:"Arial"; font-family:Arial; }
+    .ql-font span[data-value="times"]::before { content:"Times New Roman"; font-family:'Times New Roman'; }
+    .ql-font span[data-value="courier"]::before { content:"Courier New"; font-family:'Courier New'; }
+    .ql-font span[data-value="georgia"]::before { content:"Georgia"; font-family:Georgia; }
+    .ql-font span[data-value="verdana"]::before { content:"Verdana"; font-family:Verdana; }
+    .ql-font .ql-picker-label[data-value="arial"]::before { content:"Arial"; }
+    .ql-font .ql-picker-label[data-value="times"]::before { content:"Times New Roman"; }
+    .ql-font .ql-picker-label[data-value="courier"]::before { content:"Courier New"; }
+    .ql-font .ql-picker-label[data-value="georgia"]::before { content:"Georgia"; }
+    .ql-font .ql-picker-label[data-value="verdana"]::before { content:"Verdana"; }
+
+    /* SIZE NAMES */
+    .ql-size span[data-value="10px"]::before { content:"10px"; }
+    .ql-size span[data-value="12px"]::before { content:"12px"; }
+    .ql-size span[data-value="14px"]::before { content:"14px"; }
+    .ql-size span[data-value="16px"]::before { content:"16px"; }
+    .ql-size span[data-value="18px"]::before { content:"18px"; }
+    .ql-size span[data-value="24px"]::before { content:"24px"; }
+    .ql-size span[data-value="32px"]::before { content:"32px"; }
+    .ql-size span[data-value="48px"]::before { content:"48px"; }
+
+    #page-footer { text-align:center; padding:8px; color:rgba(255,255,255,0.15); font-size:11px; border-top:1px solid rgba(255,255,255,0.05); }
+
+    /* TABLE ZONE */
+    #table-zone { max-width:860px; margin:14px auto 0; }
+    #table-zone table { border-collapse:collapse; width:100%; margin:10px 0; background:#1a1f2e; border-radius:8px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.3); }
+    #table-zone th { padding:10px 14px; border:1px solid rgba(255,255,255,0.1); background:#6366f1; color:white; font-size:13px; }
+    #table-zone td { padding:9px 14px; border:1px solid rgba(255,255,255,0.08); font-size:13px; color:#e2e8f0; }
+    #table-zone td:focus, #table-zone th:focus { outline:2px solid #6366f1; background:rgba(99,102,241,0.1); }
+
+    /* FOOTER DISPLAY */
+    #footer-display { max-width:860px; margin:10px auto 0; padding:8px 16px; color:rgba(255,255,255,0.3); font-size:12px; text-align:center; display:none; border-top:1px solid rgba(255,255,255,0.06); }
+
+    /* SIDE PANELS */
+    #comments-panel {
+      width:250px; background:#1a1f2e; border-left:1px solid rgba(255,255,255,0.07);
+      display:flex; flex-direction:column; padding:16px; overflow-y:auto; flex-shrink:0;
+      transition:width 0.3s;
+    }
+    #comments-panel h3 { font-size:13px; font-weight:600; color:white; margin-bottom:14px; display:flex; align-items:center; gap:6px; }
+    .comment-item { background:rgba(249,115,22,0.1); border-left:3px solid #f97316; padding:10px; border-radius:6px; margin-bottom:10px; animation:fadeIn 0.3s ease; }
+    .comment-author { font-weight:600; color:#fb923c; font-size:11px; margin-bottom:4px; }
+    .comment-text { color:rgba(255,255,255,0.7); font-size:12px; line-height:1.5; }
+
+    #history-panel {
+      width:230px; background:#1a1f2e; border-left:1px solid rgba(255,255,255,0.07);
+      display:none; flex-direction:column; padding:16px; overflow-y:auto; flex-shrink:0;
+    }
+    #history-panel.open { display:flex; }
+    #history-panel h3 { font-size:13px; font-weight:600; color:white; margin-bottom:14px; }
+    .history-item { padding:8px 10px; border-radius:6px; margin-bottom:8px; background:rgba(6,182,212,0.1); border-left:3px solid #06b6d4; font-size:11px; color:rgba(255,255,255,0.7); animation:fadeIn 0.3s ease; line-height:1.5; }
+    .history-time { color:#22d3ee; font-size:10px; margin-bottom:2px; font-weight:600; }
+
+    #chat-panel {
+      width:260px; background:#1a1f2e; border-left:1px solid rgba(255,255,255,0.07);
+      display:none; flex-direction:column; flex-shrink:0;
+    }
+    #chat-panel.open { display:flex; }
+    #chat-header { background:linear-gradient(135deg,#ef4444,#dc2626); padding:12px 16px; font-size:13px; font-weight:600; display:flex; justify-content:space-between; align-items:center; }
+    #chat-close { cursor:pointer; opacity:0.7; transition:opacity 0.2s; font-size:16px; }
+    #chat-close:hover { opacity:1; }
+    #chat-messages { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px; }
+    .chat-msg { padding:8px 12px; border-radius:10px; font-size:12px; max-width:90%; animation:fadeIn 0.2s ease; }
+    .chat-msg.me { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; align-self:flex-end; border-radius:10px 10px 2px 10px; }
+    .chat-msg.other { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.85); align-self:flex-start; border-radius:10px 10px 10px 2px; }
+    .msg-name { font-size:10px; font-weight:700; margin-bottom:2px; opacity:0.7; }
+    #chat-input-area { padding:10px; border-top:1px solid rgba(255,255,255,0.07); display:flex; gap:8px; }
+    #chat-input {
+      flex:1; padding:8px 12px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);
+      border-radius:8px; color:white; font-size:12px; outline:none; font-family:inherit; transition:border-color 0.2s;
+    }
+    #chat-input:focus { border-color:#6366f1; }
+    #chat-input::placeholder { color:rgba(255,255,255,0.3); }
+    #chat-send { padding:8px 14px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; border:none; border-radius:8px; cursor:pointer; font-size:14px; transition:all 0.2s; }
+    #chat-send:hover { transform:scale(1.1); }
+
+    /* MODALS */
+    .modal-overlay {
+      display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+      background:rgba(0,0,0,0.75); backdrop-filter:blur(6px);
+      z-index:1000; align-items:center; justify-content:center;
+    }
+    .modal-overlay.open { display:flex; animation:fadeIn 0.2s ease; }
+    .modal-box {
+      background:#1a1f2e; border:1px solid rgba(255,255,255,0.1);
+      padding:28px; border-radius:16px; width:320px;
+      box-shadow:0 25px 50px rgba(0,0,0,0.6); animation:fadeInUp 0.25s ease;
+    }
+    .modal-box h3 { color:white; font-size:15px; font-weight:600; margin-bottom:20px; }
+    .modal-box input, .modal-box textarea {
+      width:100%; padding:10px 14px; background:rgba(255,255,255,0.08);
+      border:1px solid rgba(255,255,255,0.12); border-radius:10px;
+      color:white; font-size:13px; margin-bottom:12px; outline:none; font-family:inherit;
+      transition:border-color 0.2s;
+    }
+    .modal-box input:focus, .modal-box textarea:focus { border-color:#6366f1; }
+    .modal-box input::placeholder, .modal-box textarea::placeholder { color:rgba(255,255,255,0.3); }
+    .modal-box textarea { height:90px; resize:none; }
+    .modal-btns { display:flex; gap:10px; }
+    .modal-btns button { flex:1; padding:11px; border:none; border-radius:10px; cursor:pointer; font-size:13px; font-weight:600; font-family:inherit; transition:all 0.2s; }
+    .modal-btns button:hover { transform:translateY(-1px); filter:brightness(1.1); }
+    .btn-confirm { background:linear-gradient(135deg,#10b981,#059669); color:white; }
+    .btn-cancel { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.7); }
+    .btn-cancel:hover { background:rgba(255,255,255,0.12); }
+
+    /* NOTIFICATIONS */
+    #notif-container { position:fixed; top:16px; right:16px; z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+    .notif { padding:12px 18px; border-radius:10px; font-size:12px; font-weight:500; box-shadow:0 4px 20px rgba(0,0,0,0.4); animation:slideIn 0.3s ease; border:1px solid rgba(255,255,255,0.1); max-width:280px; }
+    @keyframes slideIn { from{transform:translateX(100px);opacity:0} to{transform:translateX(0);opacity:1} }
+    @keyframes slideOut { from{transform:translateX(0);opacity:1} to{transform:translateX(100px);opacity:0} }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+    /* FONTS */
+    .ql-font-arial { font-family:Arial; }
+    .ql-font-times { font-family:'Times New Roman'; }
+    .ql-font-courier { font-family:'Courier New'; }
+    .ql-font-georgia { font-family:Georgia; }
+    .ql-font-verdana { font-family:Verdana; }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width:6px; }
+    ::-webkit-scrollbar-track { background:rgba(255,255,255,0.03); }
+    ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.25); }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <span class="icon">📄</span>
+      <h1>Collab Docs</h1>
+      <p>Travaillez ensemble en temps reel</p>
+    </div>
+    <div class="input-group">
+      <span class="inp-icon">👤</span>
+      <input type="text" id="username-input" placeholder="Votre nom..." maxlength="20" />
+    </div>
+    <div class="input-group">
+      <span class="inp-icon">🏠</span>
+      <input type="text" id="room-input" placeholder="Code de la salle (ex: EQUIPE-01)" maxlength="20" />
+    </div>
+    <div class="input-group">
+      <span class="inp-icon">🔒</span>
+      <input type="password" id="password-input" placeholder="Mot de passe (optionnel)" maxlength="20" />
+    </div>
+    <button class="login-btn" onclick="joinApp()">🚀 Rejoindre</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+
+  <!-- MENUBAR -->
+  <div id="menubar">
+    <div class="menu-item">
+      <button class="menu-trigger" onclick="toggleMenu('menu-fichier')">Fichier</button>
+      <div class="menu-dropdown" id="menu-fichier">
+        <div class="menu-opt" onclick="saveAs('txt')"><span>📝 Enregistrer en .txt</span><span class="shortcut">Ctrl+S</span></div>
+        <div class="menu-opt" onclick="saveAs('html')"><span>🌐 Enregistrer en .html</span></div>
+        <div class="menu-opt" onclick="saveAs('pdf')"><span>📋 Imprimer / PDF</span><span class="shortcut">Ctrl+P</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-opt" onclick="newDocument()"><span>📄 Nouveau document</span><span class="shortcut">Ctrl+N</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-opt" onclick="closeMenu('menu-fichier'); window.close()"><span>❌ Quitter</span><span class="shortcut">Alt+F4</span></div>
+      </div>
+    </div>
+    <div class="menu-item">
+      <button class="menu-trigger" onclick="toggleMenu('menu-edition')">Edition</button>
+      <div class="menu-dropdown" id="menu-edition">
+        <div class="menu-opt" onclick="quill&&quill.history.undo();closeMenu('menu-edition')"><span>↩️ Annuler</span><span class="shortcut">Ctrl+Z</span></div>
+        <div class="menu-opt" onclick="quill&&quill.history.redo();closeMenu('menu-edition')"><span>↪️ Refaire</span><span class="shortcut">Ctrl+Y</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-opt" onclick="selectAll()"><span>🔲 Tout selectionner</span><span class="shortcut">Ctrl+A</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-opt" onclick="toggleSearch();closeMenu('menu-edition')"><span>🔍 Rechercher</span><span class="shortcut">Ctrl+F</span></div>
+      </div>
+    </div>
+    <div class="menu-item">
+      <button class="menu-trigger" onclick="toggleMenu('menu-insertion')">Insertion</button>
+      <div class="menu-dropdown" id="menu-insertion">
+        <div class="menu-opt" onclick="openTableModal();closeMenu('menu-insertion')"><span>📊 Tableau</span></div>
+        <div class="menu-opt" onclick="insertHorizontalLine();closeMenu('menu-insertion')"><span>➖ Ligne horizontale</span></div>
+        <div class="menu-opt" onclick="insertPageBreak();closeMenu('menu-insertion')"><span>📃 Saut de page</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-opt" onclick="toggleHeaderFooter();closeMenu('menu-insertion')"><span>📄 En-tete / Pied de page</span></div>
+      </div>
+    </div>
+    <div class="menu-item">
+      <button class="menu-trigger" onclick="toggleMenu('menu-affichage')">Affichage</button>
+      <div class="menu-dropdown" id="menu-affichage">
+        <div class="menu-opt" onclick="toggleHistory();closeMenu('menu-affichage')"><span>📜 Historique</span></div>
+        <div class="menu-opt" onclick="toggleChat();closeMenu('menu-affichage')"><span>💬 Chat</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-opt" onclick="zoomIn();closeMenu('menu-affichage')"><span>🔍 Zoom +</span><span class="shortcut">Ctrl++</span></div>
+        <div class="menu-opt" onclick="zoomOut();closeMenu('menu-affichage')"><span>🔎 Zoom -</span><span class="shortcut">Ctrl+-</span></div>
+        <div class="menu-opt" onclick="zoomReset();closeMenu('menu-affichage')"><span>⬜ Zoom normal</span><span class="shortcut">Ctrl+0</span></div>
+      </div>
+    </div>
+    <div class="menu-item">
+      <button class="menu-trigger" onclick="toggleMenu('menu-aide')">Aide</button>
+      <div class="menu-dropdown" id="menu-aide">
+        <div class="menu-opt" onclick="showShortcuts();closeMenu('menu-aide')"><span>⌨️ Raccourcis clavier</span></div>
+        <div class="menu-opt" onclick="closeMenu('menu-aide');alert('Collab Docs v2.0\nApplication de collaboration en temps reel')"><span>ℹ️ A propos</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAVBAR -->
+  <div id="navbar">
+    <div id="navbar-left">
+      <span style="font-size:20px;">📄</span>
+      <h1>Collab Docs</h1>
+    </div>
+    <div id="navbar-right">
+      <div class="dropdown">
+        <button class="tool-btn btn-save" onclick="toggleSaveMenu()">💾 Enregistrer ▾</button>
+        <div class="dropdown-menu" id="save-menu">
+          <div class="dropdown-item" onclick="saveAs('txt')">📝 Texte (.txt)</div>
+          <div class="dropdown-item" onclick="saveAs('html')">🌐 HTML (.html)</div>
+          <div class="dropdown-item" onclick="saveAs('pdf')">📋 PDF (.pdf)</div>
+        </div>
+      </div>
+      <button class="tool-btn btn-table" onclick="openTableModal()">📊 Tableau</button>
+      <button class="tool-btn btn-search" onclick="toggleSearch()">🔍 Rechercher</button>
+      <button class="tool-btn btn-header" onclick="toggleHeaderFooter()">📄 En-tete</button>
+      <button class="tool-btn btn-comment" onclick="openCommentModal()">💬 Commenter</button>
+      <button class="tool-btn btn-history" onclick="toggleHistory()">📜 Historique</button>
+      <button class="tool-btn btn-chat" onclick="toggleChat()">💬 Chat</button>
+      <div id="room-badge">🏠 <span id="room-info"></span></div>
+      <div id="status-badge"><div id="status-dot"></div><span id="status-text">Connecte</span></div>
+    </div>
+  </div>
+
+  <!-- HEADER FOOTER BAR -->
+  <div id="header-footer-bar">
+    <label>En-tete:</label>
+    <input type="text" id="header-input" placeholder="Titre du document..." oninput="updateHeader()" />
+    <label>Pied de page:</label>
+    <input type="text" id="footer-input" placeholder="Pied de page..." oninput="updateFooter()" />
+    <button onclick="toggleHeaderFooter()" style="padding:5px 10px;background:rgba(239,68,68,0.8);color:white;border:none;border-radius:6px;cursor:pointer;font-size:11px;">✕ Fermer</button>
+  </div>
+
+  <!-- SEARCH BAR -->
+  <div id="search-bar">
+    <input type="text" id="search-input" placeholder="Rechercher..." />
+    <input type="text" id="replace-input" placeholder="Remplacer par..." />
+    <button class="search-btn" onclick="searchText()" style="background:linear-gradient(135deg,#3b82f6,#2563eb);">Rechercher</button>
+    <button class="search-btn" onclick="replaceText()" style="background:linear-gradient(135deg,#f97316,#ea580c);">Remplacer</button>
+    <span id="search-result"></span>
+    <button class="search-btn" onclick="toggleSearch()" style="background:rgba(239,68,68,0.8);">✕</button>
+  </div>
+
+  <!-- USERS BAR -->
+  <div id="users-bar"></div>
+
+  <!-- MAIN AREA -->
+  <div id="main-area">
+    <div id="editor-side">
+      <div id="header-display"></div>
+      <div id="container">
+        <div id="editor"></div>
+        <div id="page-footer">Page 1</div>
+      </div>
+      <div id="table-zone"></div>
+      <div id="footer-display"></div>
+    </div>
+    <div id="comments-panel">
+      <h3>💬 Commentaires</h3>
+      <div id="comments-list"></div>
+    </div>
+    <div id="history-panel">
+      <h3>📜 Historique</h3>
+      <div id="history-list"></div>
+    </div>
+    <div id="chat-panel">
+      <div id="chat-header">
+        <span>💬 Chat</span>
+        <span id="chat-close" onclick="toggleChat()">✕</span>
+      </div>
+      <div id="chat-messages"></div>
+      <div id="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Message..." onkeydown="if(event.key==='Enter') sendChat()" />
+        <button id="chat-send" onclick="sendChat()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="table-modal">
+  <div class="modal-box">
+    <h3>📊 Inserer un tableau</h3>
+    <input type="number" id="table-rows" placeholder="Nombre de lignes" min="1" max="20" value="3" />
+    <input type="number" id="table-cols" placeholder="Nombre de colonnes" min="1" max="10" value="3" />
+    <div class="modal-btns">
+      <button class="btn-confirm" onclick="insertTable()">Inserer</button>
+      <button class="btn-cancel" onclick="closeTableModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="comment-modal">
+  <div class="modal-box">
+    <h3>💬 Ajouter un commentaire</h3>
+    <textarea id="comment-text" placeholder="Votre commentaire..."></textarea>
+    <div class="modal-btns">
+      <button class="btn-confirm" style="background:linear-gradient(135deg,#f97316,#ea580c);" onclick="addComment()">Ajouter</button>
+      <button class="btn-cancel" onclick="closeCommentModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div id="notif-container"></div>
+
+
+<script>
+function toggleMenu(id) {
+  document.querySelectorAll('.menu-dropdown').forEach(function(m) {
+    if (m.id !== id) m.classList.remove('open');
+  });
+  document.getElementById(id).classList.toggle('open');
+}
+function closeMenu(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.menu-item')) {
+    document.querySelectorAll('.menu-dropdown').forEach(function(m) { m.classList.remove('open'); });
+  }
+});
+</script>
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/quill-cursors@3.1.0/dist/quill-cursors.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="editor.js"></script>
+</body>
+</html>
